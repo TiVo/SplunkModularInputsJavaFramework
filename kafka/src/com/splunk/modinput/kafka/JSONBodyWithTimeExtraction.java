@@ -14,7 +14,7 @@ public class JSONBodyWithTimeExtraction extends AbstractMessageHandler {
 	String timefield = "";
 
 	@Override
-	public void handleMessage(byte[] messageContents, MessageReceiver context)
+	public void handleMessage(String topic, byte[] messageContents, MessageReceiver context)
 			throws Exception {
 
 		String text = getMessageBody(messageContents, charset);
@@ -25,7 +25,7 @@ public class JSONBodyWithTimeExtraction extends AbstractMessageHandler {
 			String time = json.getString(timefield);
 			transportMessage(text, time);
 		} else {
-			transportMessage(text, "");
+			transportMessage(text);
 		}
 
 	}

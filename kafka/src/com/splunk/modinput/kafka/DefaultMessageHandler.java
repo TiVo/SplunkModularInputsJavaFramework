@@ -14,7 +14,7 @@ public class DefaultMessageHandler extends AbstractMessageHandler {
 	String charset = Charset.defaultCharset().name();
 	
 	@Override
-	public void handleMessage(byte[] messageContents,MessageReceiver context)
+	public void handleMessage(String topic, byte[] messageContents,MessageReceiver context)
 			throws Exception {
 
 		SplunkLogEvent splunkEvent = buildCommonEventMessagePart(context);
@@ -24,7 +24,7 @@ public class DefaultMessageHandler extends AbstractMessageHandler {
 
 		String text = splunkEvent.toString();
 		
-		transportMessage(text,"");
+		transportMessage(text);
 		
 	}
 

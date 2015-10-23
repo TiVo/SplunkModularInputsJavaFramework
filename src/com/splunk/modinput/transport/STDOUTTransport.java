@@ -78,9 +78,8 @@ public class STDOUTTransport implements Transport {
 	}
 
 	@Override
-	public void transport(String message, String time) {
-		// TODO Auto-generated method stub
-		
+	public void transport(String message, String time, String host, String source) {
+	    transport(message);
 	}
 
 }

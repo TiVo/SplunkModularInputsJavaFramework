@@ -13,6 +13,7 @@ import kafka.consumer.ConsumerConfig;
 import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
+import kafka.message.MessageAndMetadata;
 
 import com.splunk.modinput.Arg;
 import com.splunk.modinput.Endpoint;
@@ -224,6 +225,10 @@ public class KafkaModularInput extends ModularInput {
 
 		}
 
+	        public String getStanzaName() {
+		    return stanzaName;
+		}
+
 		private Map<String, String> getParamMap(
 				String localResourceFactoryParams) {
 
@@ -309,8 +314,10 @@ public class KafkaModularInput extends ModularInput {
 					KafkaStream<byte[], byte[]> stream = consumerMap.get(
 							this.topicName).get(0);
 					ConsumerIterator<byte[], byte[]> it = stream.iterator();
-					while (it.hasNext())
-						streamMessageEvent(it.next().message());
+					while (it.hasNext()) {
+					    MessageAndMetadata<byte[], byte[]> envelope = it.next();
+					    streamMessageEvent(envelope.topic(), envelope.message());
+					}
 
 				} catch (Throwable e) {
 					logger.error("Stanza " + stanzaName + " : "
@@ -324,9 +331,9 @@ public class KafkaModularInput extends ModularInput {
 			}
 		}
 
-		private void streamMessageEvent(byte[] message) {
+		private void streamMessageEvent(String topic, byte[] message) {
 			try {
-				messageHandler.handleMessage(message, this);
+				messageHandler.handleMessage(topic, message, this);
 			
 			} catch (Exception e) {
 				logger.error("Stanza " + stanzaName + " : "

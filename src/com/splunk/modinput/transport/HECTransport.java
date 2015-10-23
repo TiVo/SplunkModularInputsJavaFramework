@@ -156,13 +156,10 @@ public class HECTransport implements Transport {
 
 	}
 
-	private void createAndSendHECEvent(String message, String time) {
+	private void createAndSendHECEvent(String message, String time, String host, String source) {
 		String currentMessage = "";
 		try {
-
-			if (!(message.startsWith("{") && message.endsWith("}"))
-					&& !(message.startsWith("\"") && message.endsWith("\"")))
-				message = wrapMessageInQuotes(message);
+		        message = escapeMessageIfNeeded(message);
 
 			// could use a JSON Object , but the JSON is so trivial , just
 			// building it with a StringBuffer
@@ -173,8 +170,14 @@ public class HECTransport implements Transport {
 				json.append("index\":\"").append(config.getIndex())
 						.append("\",\"");
 
-			json.append("source\":\"").append(config.getSource())
-					.append("\",\"");
+		        if (source == null || source.length() == 0) {
+			    source = config.getSource();
+			}
+		        json.append("source\":\"").append(source).append("\",\"");
+
+		        if (host != null && host.length() > 0) {
+			    json.append("host\":\"").append(host).append("\",\"");
+			}
 
 			if (time != null && time.length() > 0)
 				json.append("time\":\"").append(time).append("\",\"");
@@ -206,15 +209,15 @@ public class HECTransport implements Transport {
 	}
 
 	@Override
-	public void transport(String message, String time) {
+	public void transport(String message, String time, String host, String source) {
 
-		createAndSendHECEvent(message, time);
+		createAndSendHECEvent(message, time, host, source);
 	}
 
 	@Override
 	public void transport(String message) {
 
-		createAndSendHECEvent(message, "");
+		createAndSendHECEvent(message, "", "", "");
 	}
 
 	private boolean flushBuffer() {
@@ -254,9 +257,19 @@ public class HECTransport implements Transport {
 
 	}
 
-	private String wrapMessageInQuotes(String message) {
-
-		return "\"" + message + "\"";
+        private String escapeMessageIfNeeded(String message) {
+	    String trimmedMessage = message.trim();
+	    if (trimmedMessage.startsWith("{") && trimmedMessage.endsWith("}")) {
+		// this is *probably* JSON.
+		return trimmedMessage;
+	    } else if (trimmedMessage.startsWith("\"") && trimmedMessage.endsWith("\"") &&
+		    !message.substring(1, message.length() - 1).contains("\"")) {
+		// this appears to be a quoted string with no internal quotes
+		return trimmedMessage;
+	    } else {
+		// don't know what this thing is, so need to escape all quotes, and
+		// then wrap the result in quotes
+		return "\"" + message.replace("\"", "\\\"") + "\"";
+	    }
 	}
-
 }
