@@ -9,10 +9,13 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.StringTokenizer;
 
+import kafka.consumer.Blacklist;
 import kafka.consumer.ConsumerConfig;
-import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
+import kafka.consumer.TopicFilter;
+import kafka.consumer.Whitelist;
+import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.message.MessageAndMetadata;
 
 import com.splunk.modinput.Arg;
@@ -77,6 +80,7 @@ public class KafkaModularInput extends ModularInput {
 			List<Param> params, boolean validationConnectionMode)
 			throws Exception {
 
+	        String topicSelectionType = "";
 		String topicName = "";
 		String zkhost = "";
 		int zkport = 2181; // default Zookeeper port
@@ -98,7 +102,9 @@ public class KafkaModularInput extends ModularInput {
 				continue;
 			}
 
-			if (param.getName().equals("topic_name")) {
+		        if (param.getName().equals("topic_selection_type")) {
+			        topicSelectionType = param.getValue();
+			} else if (param.getName().equals("topic_name")) {
 				topicName = param.getValue();
 			} else if (param.getName().equals("zookeeper_connect_host")) {
 				zkhost = param.getValue();
@@ -148,7 +154,8 @@ public class KafkaModularInput extends ModularInput {
 		}
 
 		if (!isDisabled(stanzaName)) {
-			MessageReceiver mr = new MessageReceiver(stanzaName, topicName,
+			MessageReceiver mr = new MessageReceiver(stanzaName,
+				        topicSelectionType, topicName,
 					zkhost, zkport, zkchroot, zkconnectRawString, groupID,
 					zkSessionTimeout, zkSyncTime, autoCommitInterval,
 					additionalConnectionProps, messageHandlerImpl,
@@ -162,6 +169,7 @@ public class KafkaModularInput extends ModularInput {
 
 	public class MessageReceiver extends Thread {
 
+	        String topicSelectionType;
 		String topicName;
 		String stanzaName;
 		AbstractMessageHandler messageHandler;
@@ -171,7 +179,8 @@ public class KafkaModularInput extends ModularInput {
 		ConsumerConfig consumerConfig;
 		ConsumerConnector consumer;
 
-		public MessageReceiver(String stanzaName, String topicName,
+		public MessageReceiver(String stanzaName,
+				String topicSelectionType, String topicName,
 				String zkhost, int zkport, String zkchroot,
 				String zkconnectRawString, String groupID,
 				int zkSessionTimeout, int zkSyncTime, int autoCommitInterval,
@@ -180,6 +189,7 @@ public class KafkaModularInput extends ModularInput {
 
 			this.stanzaName = stanzaName;
 
+		        this.topicSelectionType = topicSelectionType;
 			this.topicName = topicName;
 
 			Properties connectionProperties = new Properties();
@@ -306,13 +316,24 @@ public class KafkaModularInput extends ModularInput {
 				}
 
 				try {
-
-					Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
-					topicCountMap.put(this.topicName, new Integer(1));
-					Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = this.consumer
-							.createMessageStreams(topicCountMap);
-					KafkaStream<byte[], byte[]> stream = consumerMap.get(
-							this.topicName).get(0);
+				        KafkaStream<byte[], byte[]> stream = null;
+				        if (topicSelectionType.equals("by_name")) {
+					    Map<String, Integer> topicCountMap = new HashMap<String, Integer>();
+					    topicCountMap.put(this.topicName, new Integer(1));
+					    Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = this.consumer
+						    .createMessageStreams(topicCountMap);
+					    stream = consumerMap.get(this.topicName).get(0);
+					} else {
+					    TopicFilter topicFilter = null;
+					    if (topicSelectionType.equals("by_whitelist")) {
+						topicFilter = new Whitelist(topicName);
+					    } else if (topicSelectionType.equals("by_blacklist")) {
+						topicFilter = new Blacklist(topicName);
+					    }
+					    List<KafkaStream<byte[], byte[]>> streams =
+						    this.consumer.createMessageStreamsByFilter(topicFilter);
+					    stream = streams.get(0);
+					}
 					ConsumerIterator<byte[], byte[]> it = stream.iterator();
 					while (it.hasNext()) {
 					    MessageAndMetadata<byte[], byte[]> envelope = it.next();

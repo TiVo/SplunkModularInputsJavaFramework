@@ -31,7 +31,11 @@ import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.nio.reactor.ConnectingIOReactor;
 import org.apache.http.ssl.SSLContexts;
 import org.apache.http.ssl.TrustStrategy;
+import org.apache.http.util.EntityUtils;
 import org.apache.log4j.Logger;
+
+import org.json.JSONObject;
+import org.json.JSONException;
 
 import com.splunk.modinput.ModularInput;
 
@@ -158,34 +162,32 @@ public class HECTransport implements Transport {
 
 	private void createAndSendHECEvent(String message, String time, String host, String source) {
 		String currentMessage = "";
-		try {
-		        message = escapeMessageIfNeeded(message);
+		JSONObject jsonObject = null;
+		try{
+			jsonObject = new JSONObject();
 
-			// could use a JSON Object , but the JSON is so trivial , just
-			// building it with a StringBuffer
-			StringBuffer json = new StringBuffer();
-			json.append("{\"").append("event\":").append(message).append(",\"");
+			jsonObject.put("event", typedMessage(message));
 
-			if (!config.getIndex().equalsIgnoreCase("default"))
-				json.append("index\":\"").append(config.getIndex())
-						.append("\",\"");
-
-		        if (source == null || source.length() == 0) {
-			    source = config.getSource();
-			}
-		        json.append("source\":\"").append(source).append("\",\"");
-
-		        if (host != null && host.length() > 0) {
-			    json.append("host\":\"").append(host).append("\",\"");
+			if (!config.getIndex().equalsIgnoreCase("default")) {
+				jsonObject.put("index", config.getIndex());
 			}
 
-			if (time != null && time.length() > 0)
-				json.append("time\":\"").append(time).append("\",\"");
+			if (source == null || source.length() == 0) {
+				source = config.getSource();
+			}
+			jsonObject.put("source", source);
 
-			json.append("sourcetype\":\"").append(config.getSourcetype())
-					.append("\"").append("}");
+			if (host != null && host.length() > 0) {
+				jsonObject.put("host", host);
+			}
 
-			currentMessage = json.toString();
+			if (time != null && time.length() > 0) {
+				jsonObject.put("time", time);
+			}
+
+			jsonObject.put("sourcetype", config.getSourcetype());
+
+			currentMessage = jsonObject.toString();
 
 			if (config.isBatchMode()) {
 				lastEventReceivedTime = System.currentTimeMillis();
@@ -252,24 +254,25 @@ public class HECTransport implements Transport {
 		int code = response.getStatusLine().getStatusCode();
 		if (code != 200) {
 			logger.error("Error sending HEC event , "
-					+ response.getStatusLine() + " , " + response.getEntity());
+					+ response.getStatusLine() + " , " + EntityUtils.toString(response.getEntity()));
 		}
 
 	}
 
-        private String escapeMessageIfNeeded(String message) {
-	    String trimmedMessage = message.trim();
-	    if (trimmedMessage.startsWith("{") && trimmedMessage.endsWith("}")) {
-		// this is *probably* JSON.
-		return trimmedMessage;
-	    } else if (trimmedMessage.startsWith("\"") && trimmedMessage.endsWith("\"") &&
-		    !message.substring(1, message.length() - 1).contains("\"")) {
-		// this appears to be a quoted string with no internal quotes
-		return trimmedMessage;
-	    } else {
-		// don't know what this thing is, so need to escape all quotes, and
-		// then wrap the result in quotes
-		return "\"" + message.replace("\"", "\\\"") + "\"";
-	    }
+	private Object typedMessage(String message) {
+		String trimmedMessage = message.trim();
+
+		// Check for JSON object
+		if (trimmedMessage.startsWith("{") && trimmedMessage.endsWith("}")) {
+			// this is *probably* JSON.
+			try {
+				return new JSONObject(trimmedMessage);
+			} catch (JSONException e) {
+				// guess not really JSON.  Fall through to backup code
+			}
+		}
+
+		// Treating message as a string
+		return message;
 	}
 }

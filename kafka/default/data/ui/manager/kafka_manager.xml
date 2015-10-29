@@ -136,15 +136,27 @@
 					<view name="create" />
 					<view name="list"/>
 					<elements>
-<element name="topic_name" type="textfield" label="Kafka Topic Name">
+        <element name="topic_selection_type" type="select" label="Topic Selection">
+
+          <view name="list" />
+          <view name="edit" />
+          <view name="create" />
+          <options>
+            <opt value="by_name" label="By Name" />
+            <opt value="by_whitelist" label="By Whitelist Regex" />
+            <opt value="by_blacklist" label="By Blacklist Regex" />
+          </options>
+        </element>
+
+        <element name="topic_name" type="textfield" label="Kafka Topic Name/Regex">
           
           <view name="edit"/>
           <view name="create"/>
           <view name="list"/>
-          <key name="exampleText">Kafka Topic Name</key>
+          <key name="exampleText">Kafka Topic Name or Whitelist/Blacklist Regex</key>
         </element>
         
-<element name="group_id" type="textfield" label="Kafka Group ID">
+        <element name="group_id" type="textfield" label="Kafka Group ID">
           
           <view name="edit"/>
           <view name="create"/>

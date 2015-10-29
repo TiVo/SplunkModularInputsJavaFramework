@@ -76,7 +76,7 @@ public class JSONBodyWithFieldExtraction extends AbstractMessageHandler {
                         ? time.getEpochSecond() + "." + String.format("%09d", time.getNano())
                         : "",
                 host,
-                context.getStanzaName() + ":" + topic);
+                context.getStanzaName() + "/" + topic);
     }
 
     @Override

@@ -1,5 +1,9 @@
 [kafka://name]
 
+# One of [by_name | by_whitelist | by_blacklist ]
+
+topic_selection_type = <value>
+
 # name of the topic
 
 topic_name = <value>
